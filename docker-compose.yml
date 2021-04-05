@@ -1,0 +1,14 @@
+version: "3.1"
+services:
+  go-web-app:
+    image: "hassiodev/go-web-app"
+    ports:
+      - "3000:3000"
+  rust-web-app:
+    image: "hassiodev/rust-web-app"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - "rust-sql-db"
+  rust-sql-db:
+    image: "hassiodev/rust-sql-db"

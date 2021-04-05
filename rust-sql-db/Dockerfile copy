@@ -1,0 +1,36 @@
+FROM ubuntu:20.04
+
+ENV TZ=Europe/Madrid
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get update && apt-get install -y sudo
+RUN useradd -m docker && echo "docker:docker" | chpasswd && adduser docker sudo
+RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d
+USER docker
+
+RUN echo 'docker' | sudo -S apt-get install -y postgresql postgresql-contrib libpq-dev curl build-essential
+# pg_ctlcluster 12 main start
+ENV PATH="/usr/lib/postgresql/12/bin:${PATH}"
+#RUN echo 'docker' | sudo -S pg_ctlcluster 12 main start
+RUN ps axf | grep postgres
+#RUN /usr/lib/postgresql/12/bin/pg_ctl start
+RUN echo 'docker' | sudo -S /etc/init.d/postgresql restart
+RUN ps axf | grep postgres
+RUN echo 'docker' | sudo -S -u postgres psql -c "ALTER USER postgres PASSWORD 'password';"
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+ENV PATH="/home/docker/.cargo/bin:${PATH}"
+WORKDIR /usr/src/rust-sql-db
+RUN echo 'docker' | sudo -S chown -R docker /usr/src
+COPY --chown=docker:docker . .
+
+RUN cargo install diesel_cli --no-default-features --features postgres
+RUN cargo install --bin rust-sql-db --path .
+
+#RUN echo 'docker' | sudo -S -u postgres psql -c "ALTER USER postgres PASSWORD 'password';"
+RUN echo DATABASE_URL=postgres://username:password@localhost/rust-sql-db > .env
+RUN diesel migration run
+
+CMD ["rust-sql-db"]
